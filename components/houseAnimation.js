@@ -2,15 +2,42 @@ import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF, PerspectiveCamera } from "@react-three/drei"
 import { useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion-3d";
+import { useRouter } from "next/router";
 
 const HouseAnimation = () => {
     const { scrollYProgress } = useScroll()
-    const ref = useRef(null)
+    const house = useRef(null)
     const parentRef = useRef(null)
-
+    const frontRoof = useRef(null)
+    const backRoof = useRef(null)
+    const [frontRoofScale, setFrontRoofScale] = useState([0.015216, 0.014808, 0.015216])
     // Stores the start and end scrolling position for our container
     const [scrollPercentageStart, setScrollPercentageStart] = useState(null);
     const [scrollPercentageEnd, setScrollPercentageEnd] = useState(null);
+    const [roofShowing, setRoofShowing] = useState(false);
+
+    const router = useRouter()
+
+    const handleClickOnWalls = () => {
+        router.push('/eksterior')
+    }
+
+    const handleClickOnRoof = () => {
+        router.push('/takfornying')
+    }
+
+
+
+
+    const handleFrontRoofHover = (isHovered) => {
+        if (isHovered === true) {
+            setFrontRoofScale([0.015216 * 1.01, 0.014808 * 1.01, 0.015216 * 1.01])
+        }
+        else setFrontRoofScale([0.015216, 0.014808, 0.015216])
+    }
+
+
 
 
     useLayoutEffect(() => {
@@ -37,14 +64,29 @@ const HouseAnimation = () => {
             })
         }, [])
 
-        let newRotation = useTransform(scrollYProgress, [scrollPercentageStart, scrollPercentageEnd], [230, 180])
+        let motionValue = useTransform(scrollYProgress, [scrollPercentageStart, scrollPercentageEnd], [0, 1.4])
+        let currentMotionValue
         useFrame(() => {
-            ref.current.rotation.y = newRotation.get() * Math.PI / 180
+            currentMotionValue = motionValue.get()
+            if (currentMotionValue <= 1) {
+                house.current.rotation.y = (230 - currentMotionValue * 50) * Math.PI / 180
+                frontRoof.current.position.y = Math.sin(currentMotionValue * Math.PI) * 1.4 + 4.885315
+                backRoof.current.position.y = Math.sin(currentMotionValue * Math.PI) * 1.2 + 4.738043
+            }
+
         }, [])
+        console.log(roofShowing)
+        // backRoof.material.color.setHex('#000')
+
+
 
         const { nodes, materials } = useGLTF("/HusfHouse2.gltf");
+
+        materials["CoverMeterial.003"].setValues()
         return (
-            <group position={[0, -2, -10]} dispose={null} ref={ref}>
+            <group position={[0, -2, -10]} dispose={null} ref={house}>
+
+                {/* window */}
                 <mesh
                     castShadow
                     receiveShadow
@@ -54,6 +96,8 @@ const HouseAnimation = () => {
                     rotation={[-Math.PI / 2, 0, 0]}
                     scale={0.686293}
                 />
+
+                {/* window right second */}
                 <mesh
                     castShadow
                     receiveShadow
@@ -63,6 +107,8 @@ const HouseAnimation = () => {
                     rotation={[-Math.PI / 2, 0, 0]}
                     scale={0.686293}
                 />
+
+                {/* window left first */}
                 <mesh
                     castShadow
                     receiveShadow
@@ -90,6 +136,7 @@ const HouseAnimation = () => {
                     rotation={[-Math.PI / 2, 0, 0]}
                     scale={0.686293}
                 />
+                {/* window front left */}
                 <mesh
                     castShadow
                     receiveShadow
@@ -211,16 +258,23 @@ const HouseAnimation = () => {
                     material={materials["windlow.011"]}
                     position={[0, -0.004452, 0]}
                 />
-                <mesh
+
+                {/* front roof */}
+                <motion.mesh
+                    ref={frontRoof}
                     castShadow
                     receiveShadow
                     geometry={nodes.SouthToNorthRoof.geometry}
                     material={materials["Material.005"]}
-                    position={[0.026687, 4.885315, -2.617492]}
+                    position={[.026687, 4.885315, -2.617492]}
                     rotation={[-Math.PI / 2, 0.776672, -Math.PI / 2]}
-                    scale={[0.015216, 0.014808, 0.015216]}
+                    scale={frontRoofScale}
+                    onClick={handleClickOnRoof}
                 />
-                <mesh
+
+                {/* back roof */}
+                <motion.mesh
+                    ref={backRoof}
                     castShadow
                     receiveShadow
                     geometry={nodes.WestToEastRoof.geometry}
@@ -228,7 +282,11 @@ const HouseAnimation = () => {
                     position={[0.062131, 4.738043, 0.219201]}
                     rotation={[-0.794125, 0, -Math.PI]}
                     scale={[0.015216, 0.015604, 0.015216]}
+                    onClick={handleClickOnRoof}
+                    
                 />
+
+
                 <group position={[1.084823, 2.346381, -3.558147]}>
                     <mesh
                         castShadow
@@ -236,18 +294,23 @@ const HouseAnimation = () => {
                         geometry={nodes.Plane018.geometry}
                         material={materials["windlow.007"]}
                     />
-                    <mesh
+                    <motion.mesh
                         castShadow
                         receiveShadow
                         geometry={nodes.Plane018_1.geometry}
                         material={materials["Material.007"]}
-                    />
+                        whileHover={{ scale: 1.01 }}
+                        onClick={handleClickOnWalls}
+                    >
+                    </motion.mesh>
                     <mesh
                         castShadow
                         receiveShadow
                         geometry={nodes.Plane018_2.geometry}
                         material={materials["CoverMeterial.002"]}
-                    />
+                    >
+                        <meshBasicMaterial color={'#353535'} />
+                    </mesh>
                 </group>
             </group>
         )
@@ -262,6 +325,45 @@ const HouseAnimation = () => {
                     <directionalLight position={[0, 5, 20]} intensity={1.2} />
                     <NewHouse />
                 </Canvas>
+                {roofShowing === true ? (
+                    <div style={{
+                        minWidth: '100px',
+                        minHeight: '70px',
+                        backgroundColor: 'white',
+                        position: 'absolute',
+                        top: '10%',
+                        right: '5vw',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignContent: 'center',
+                        alignItems: 'center',
+                        paddingLeft: '2rem',
+                        paddingRight: '2rem',
+                        paddingTop: '1rem',
+                        paddingBottom: '2rem',
+                    }}>
+                        <p style={{
+                            color: '#101a5f',
+                            fontSize: '1rem',
+                            fontWeight: '900',
+                            textTransform: 'uppercase',
+
+                        }}>
+                            Takfornying
+                        </p>
+                        <p style={{
+                            margin: '0px',
+                            color: '#101a5f',
+                            fontSize: '1.5rem',
+                            fontWeight: '400',
+
+                        }}>
+                            Vi fornyer tak!
+                        </p>
+
+                    </div>
+                ) : null}
             </div>
         </div>
     )
